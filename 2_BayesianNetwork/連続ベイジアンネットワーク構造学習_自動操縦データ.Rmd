@@ -1,0 +1,139 @@
+---
+title: "連続ベイジアンネットワーク"
+output: html_document
+date: "2024-06-07"
+---
+
+```{r setup, include=FALSE}
+# Install and load the bnlearn package
+if (!requireNamespace("bnlearn", quietly = TRUE)) {
+  install.packages("bnlearn")
+}
+library(bnlearn)
+library(Rgraphviz)
+```
+
+# 正規化されたデータをベイジアンネットワークでシミュレーション
+
+```{r}
+data <- read.csv("~/R/1_33件_直線水平飛行Straight操縦データ_120秒データ_rev1/auto_straight_flagnameinfo_meanstd_light.csv")
+#View(data)
+```
+
+## データ分布の確認
+
+```{r}
+data <- data[, c('std_Pitch', 'std_AltMSL', 'std_IAS', 'mean_IAS', 'std_Power', 'mean_Roll', 'std_Roll', 'mean_HDG', 'std_HDG', 'mean_AltMSL')]
+#基本統計量
+summary(data)
+```
+
+```{r}
+# プロットレイアウトの設定 (3行3列)
+par(mfrow=c(3, 4), mar=c(2, 2, 2, 2))
+
+# data データフレームの各列に対してヒストグラムを描画
+for (variable in names(data)) {
+    hist(data[[variable]], main=paste("Histogram of", variable), xlab=variable)
+}
+
+# プロットレイアウト設定をリセット
+par(mfrow=c(1, 1))
+```
+
+```{r}
+# プロットレイアウトの設定 (3行3列)
+par(mfrow=c(3, 4), mar=c(2, 2, 2, 2))
+
+# data データフレームの各列に対してヒストグラムを描画
+for (variable in names(data)) {
+    boxplot(data[[variable]], main=paste("Histogram of", variable), xlab=variable)
+}
+
+# プロットレイアウト設定をリセット
+par(mfrow=c(1, 1))
+```
+
+### Q-Q プロット
+
+Q-Q プロットを使用して、データが正規分布に従っているかどうかを確認します。データがプロット上の線に沿っていれば、正規分布に近いと考えられます。
+
+```{r}
+# プロットレイアウトの設定 (3行3列)
+par(mfrow=c(3, 4), mar=c(2, 2, 2, 2))
+
+# data データフレームの各列に対してヒストグラムを描画
+for (variable in names(data)) {
+    qqnorm(data[[variable]], main=paste("Histogram of", variable), xlab=variable)
+    qqline(data[[variable]], col = "red")
+}
+
+# プロットレイアウト設定をリセット
+par(mfrow=c(1, 1))
+```
+
+### 密度プロット
+
+データの密度プロットを描画して、滑らかな分布の形状を確認します。
+
+```{r}
+# プロットレイアウトの設定 (3行3列)
+par(mfrow=c(3, 4), mar=c(2, 2, 2, 2))
+
+# data データフレームの各列に対してヒストグラムを描画
+for (variable in names(data)) {
+    plot(density(data[[variable]]), main = "Density Plot of Variable")
+}
+
+# プロットレイアウト設定をリセット
+par(mfrow=c(1, 1))
+```
+
+## シャピロ-ウィルク検定
+
+シャピロ-ウィルク検定はサンプルサイズが小さなデータセットに適しており、データが正規分布に従っているかどうかを検定します。
+0.05以上だ
+
+
+```{r}
+# data データフレームの各列に対してシャピロ-ウィルク検定を実施
+results <- lapply(data, shapiro.test)
+
+# 検定結果の表示
+results
+```
+
+## 連続値ベイジアン
+
+```{r}
+# Define the network structure
+nodes <- c('std_Pitch', 'std_AltMSL', 'std_IAS', 'mean_IAS', 'std_Power', 
+           'mean_Roll', 'mean_HDG', 'std_Roll', 'std_HDG', 'mean_AltMSL')
+
+dag = hc(data, score = "bic-g")
+dag
+```
+
+```{r}
+graphviz.plot(dag, shape = "ellipse")
+
+```
+
+```{r}
+
+# Define the network structure
+nodes <- c('std_Pitch', 'std_AltMSL', 'std_IAS', 'mean_IAS', 'std_Power', 
+           'mean_Roll', 'mean_HDG', 'std_Roll', 'std_HDG', 'mean_AltMSL')
+
+# Define the network structure clearly
+# ネットワーク構造の定義
+dag <- model2network("[std_Pitch][mean_Roll][std_IAS|std_Pitch][std_Roll|mean_Roll][std_AltMSL|std_IAS][mean_IAS|std_IAS:std_Roll][std_Power|std_Roll][std_HDG|mean_IAS:mean_Roll][mean_AltMSL|std_IAS:std_HDG][mean_HDG|std_IAS:mean_AltMSL]")
+
+fitted <- bn.fit(dag, data = data, method = "hard-em-g")
+fitted
+```
+
+
+
+
+
